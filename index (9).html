@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Tetris Investment</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    background: #080810; color: #fff;
+    font-family: 'Segoe UI', sans-serif;
+    height: 100vh; overflow: hidden;
+}
+.screen { display: none; width: 100%; height: 100vh; }
+.screen.active { display: flex; }
+
+/* ══ HOME ══ */
+#home-screen { flex-direction: column; align-items: center; justify-content: center; overflow-y: auto; position: relative; background: #080810; }
+#home-screen::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: linear-gradient(rgba(0,212,255,0.04) 1px,transparent 1px), linear-gradient(90deg,rgba(0,212,255,0.04) 1px,transparent 1px);
+    background-size: 40px 40px; pointer-events: none; z-index: 0;
+}
+.page-wrapper { position: relative; z-index: 1; width: 100%; max-width: 1160px; padding: 36px 28px; display: flex; flex-direction: column; align-items: center; gap: 28px; }
+
+.header { text-align: center; }
+.logo { font-size: 56px; font-weight: 900; letter-spacing: 8px; color: #00d4ff; text-shadow: 0 0 30px rgba(0,212,255,0.7), 0 0 60px rgba(0,212,255,0.3); cursor: pointer; user-select: none; line-height: 1; display: block; }
+.logo-sub { font-size: 13px; letter-spacing: 6px; color: #446; margin-top: 6px; text-transform: uppercase; }
+.wallet-display { margin-top: 14px; font-size: 32px; font-weight: bold; color: #ffd93d; text-shadow: 0 0 20px rgba(255,217,61,0.4); transition: color .3s, transform .1s; }
+.wallet-label { font-size: 11px; letter-spacing: 3px; color: #445; text-transform: uppercase; margin-top: 2px; }
+
+.main-layout { display: flex; gap: 22px; width: 100%; align-items: flex-start; }
+
+/* Shop panel */
+.shop-panel { flex: 1; background: #0d0d1a; border: 1px solid #1e1e35; border-radius: 12px; padding: 20px; min-width: 0; }
+.panel-title { font-size: 11px; letter-spacing: 3px; color: #445; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.panel-title::after { content: ''; flex: 1; height: 1px; background: #1e1e35; }
+.tab-row { display: flex; gap: 6px; margin-bottom: 12px; }
+.tab-btn { flex: 1; padding: 7px; background: #111120; border: 1px solid #222; color: #555; cursor: pointer; border-radius: 6px; font-size: 11px; font-weight: bold; letter-spacing: 1px; transition: .15s; }
+.tab-btn.active { background: #0d1a2a; border-color: #00d4ff; color: #00d4ff; }
+.tab-btn.skill-tab.active { background: #1a0d2a; border-color: #b060ff; color: #b060ff; }
+.shop-items { display: flex; flex-direction: column; gap: 9px; }
+.shop-item { background: #0a0a16; border: 1px solid #1e1e30; border-left: 3px solid #222; border-radius: 8px; padding: 12px 13px 11px; transition: border-color .2s, background .2s; position: relative; }
+.shop-item.owned   { border-left-color: #00d4ff; }
+.shop-item.equipped { border-left-color: #00ff99; background: #0a1a12; }
+.shop-item.special { border: 1px solid #3a3010; border-left: 3px solid #ffd93d; }
+.shop-item.skill-item { border-left-color: #331a4a; }
+.shop-item.skill-item.owned { border-left-color: #b060ff; background: #120a1e; }
+.item-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+.item-name { font-size: 13px; font-weight: bold; color: #ddd; display: flex; align-items: center; gap: 7px; }
+.badge { font-size: 9px; padding: 2px 6px; border-radius: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: .5px; }
+.badge-equipped { background: #00ff99; color: #000; }
+.badge-owned    { background: #00d4ff; color: #000; }
+.badge-skill    { background: #b060ff; color: #fff; }
+.badge-active   { background: #ffd93d; color: #000; }
+.item-price { font-size: 12px; font-weight: bold; color: #ffd93d; white-space: nowrap; margin-left: 8px; }
+.item-desc { font-size: 10px; color: #556; line-height: 1.5; margin-bottom: 9px; }
+.item-btn { background: #151528; border: 1px solid #2a2a44; color: #888; padding: 5px 13px; cursor: pointer; border-radius: 5px; font-size: 10px; font-weight: bold; letter-spacing: 1px; transition: .15s; }
+.item-btn:hover:not(:disabled) { background: #00d4ff; border-color: #00d4ff; color: #000; }
+.item-btn.skill-buy:hover:not(:disabled) { background: #b060ff; border-color: #b060ff; color: #fff; }
+.item-btn:disabled { opacity: .35; cursor: not-allowed; }
+.item-btn.equipped-btn { background: #0a2018; border-color: #00ff99; color: #00ff99; }
+.item-btn.equipped-btn:hover { background: #f33; border-color: #f33; color: #fff; }
+
+/* Right panel */
+.right-panel { width: 265px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
+.action-card { background: #0d0d1a; border: 1px solid #1e1e35; border-radius: 12px; padding: 16px; }
+.speed-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 8px; }
+.speed-btn { padding: 9px 4px; background: #0a0a16; border: 1px solid #1e1e30; color: #444; cursor: pointer; border-radius: 7px; font-size: 10px; font-weight: bold; text-align: center; transition: .15s; line-height: 1.4; }
+.speed-btn .mult { font-size: 14px; color: #555; display: block; }
+.speed-btn:hover { border-color: #333; color: #aaa; }
+.speed-btn.active { background: #0d1a2a; border-color: #00d4ff; color: #fff; }
+.speed-btn.active .mult { color: #00d4ff; }
+.equipped-box { margin-top: 8px; min-height: 28px; font-size: 11px; color: #00ff99; line-height: 1.8; }
+.no-equip { color: #333; font-style: italic; }
+.start-btn { width: 100%; padding: 16px; background: linear-gradient(135deg,#00d4ff,#0088bb); border: none; color: #000; font-size: 19px; font-weight: 900; letter-spacing: 3px; cursor: pointer; border-radius: 10px; transition: .2s; box-shadow: 0 0 30px rgba(0,212,255,.25); }
+.start-btn:hover { background: linear-gradient(135deg,#33e0ff,#00aadd); transform: translateY(-2px); }
+.controls { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 8px; margin-top: 8px; }
+.ctrl-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #445; }
+.key { background: #111120; border: 1px solid #222; border-radius: 4px; padding: 2px 5px; font-size: 9px; color: #666; white-space: nowrap; font-family: monospace; }
+
+/* ══ GAME ══ */
+#game-screen { align-items: center; justify-content: center; background: #08080f; position: relative; }
+.game-container { display: flex; gap: 16px; align-items: flex-start; position: relative; }
+canvas { border: 3px solid #2a2a3a; background: #000; box-shadow: 0 0 24px rgba(0,0,0,.9); display: block; }
+.side-panel { display: flex; flex-direction: column; gap: 6px; width: 148px; }
+.box { border: 1px solid #222; padding: 7px; background: #0c0c18; text-align: center; border-radius: 6px; }
+.glabel { font-size: 9px; color: #446; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 1.5px; }
+.value { font-size: 14px; font-weight: bold; color: #00d4ff; }
+.gmoney { color: #ffeb3b; }
+canvas.small { background: #050508; margin-top: 3px; border-radius: 2px; display: block; margin-left: auto; margin-right: auto; }
+
+/* MP bar */
+.mp-bar-wrap { margin-top: 4px; background: #080818; border-radius: 4px; height: 8px; overflow: hidden; border: 1px solid #1a1a2a; }
+.mp-bar-fill { height: 100%; background: linear-gradient(90deg,#5020a0,#b060ff); transition: width .2s; border-radius: 4px; }
+.mp-text { font-size: 9px; color: #8050c0; margin-top: 2px; }
+
+/* Skill buttons */
+.skill-btn {
+    width: 100%; padding: 7px;
+    background: linear-gradient(135deg,#20103a,#140826);
+    border: 1px solid #5030a0; color: #a060f0;
+    border-radius: 6px; font-size: 10px; font-weight: bold;
+    letter-spacing: 0.5px; cursor: pointer; transition: .15s; margin-top: 4px;
+}
+.skill-btn:hover:not(:disabled) { border-color: #b060ff; background: linear-gradient(135deg,#30184a,#200e36); }
+.skill-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+/* Float message */
+#float-msg {
+    position: absolute; left: 50%; top: 38%;
+    transform: translate(-50%,-50%);
+    pointer-events: none; text-align: center; white-space: pre;
+    z-index: 50; opacity: 0; transition: opacity .12s;
+    font-weight: 900; text-shadow: 0 2px 8px #000;
+}
+
+/* Mino picker */
+#mino-picker {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    bottom: 10px; display: none;
+    background: rgba(8,6,18,0.97); border: 1px solid #b060ff;
+    border-radius: 10px; padding: 10px 13px; z-index: 200;
+    box-shadow: 0 0 30px rgba(160,80,255,0.3);
+}
+#mino-picker .picker-title { font-size: 10px; color: #a060f0; letter-spacing: 1.5px; text-align: center; margin-bottom: 7px; }
+#mino-picker .picker-row { display: flex; gap: 5px; }
+.mino-choice { width: 42px; height: 42px; background: #0c0c1e; border: 1px solid #2a2a3a; border-radius: 6px; cursor: pointer; transition: .15s; display: flex; align-items: center; justify-content: center; }
+.mino-choice:hover { border-color: #b060ff; background: #180f2e; transform: scale(1.08); }
+.mino-choice canvas { border: none !important; box-shadow: none !important; }
+
+/* Overlays */
+.game-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 300; }
+.menu-box-g { background: #12121e; padding: 28px; border-radius: 10px; border: 2px solid #333; text-align: center; width: 290px; }
+.gbtn { background: #00d4ff; color: #000; border: none; padding: 9px 18px; cursor: pointer; border-radius: 5px; font-size: 13px; font-weight: bold; transition: .2s; margin: 4px; }
+.gbtn:hover { background: #fff; transform: scale(1.04); }
+.gbtn-back { background: #1e1e2e; color: #888; border: 1px solid #333; }
+.gbtn-back:hover { background: #2a2a3a; color: #fff; }
+.home-btn { background: #0e0e1a; border: 1px solid #222; color: #445; padding: 6px; cursor: pointer; border-radius: 5px; font-size: 10px; letter-spacing: 1px; transition: .15s; }
+.home-btn:hover { color: #aaa; border-color: #444; }
+
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.93); display: none; align-items: center; justify-content: center; z-index: 999; }
+.modal-overlay.show { display: flex; }
+.modal { background: #0e0e1e; border: 1px solid #333; border-radius: 10px; padding: 28px; text-align: center; min-width: 240px; }
+.modal input { background: #080814; border: 1px solid #333; color: #0ff; padding: 9px 12px; width: 100%; border-radius: 5px; font-size: 13px; margin: 10px 0; }
+.mbtn { background: #181830; border: 1px solid #333; color: #aaa; padding: 7px 15px; cursor: pointer; border-radius: 5px; font-size: 12px; margin: 3px; transition: .15s; }
+.mbtn:hover { background: #242438; color: #fff; }
+.mbtn.danger { border-color: #f44; }
+.mbtn.danger:hover { background: #f44; color: #fff; }
+</style>
+</head>
+<body>
+
+<!-- DEV MODALS -->
+<div id="pass-overlay" class="modal-overlay">
+    <div class="modal">
+        <h2 style="color:#f44;font-size:14px;letter-spacing:2px;">ADMIN ACCESS</h2>
+        <input type="password" id="dev-pass" placeholder="PASSWORD">
+        <div><button class="mbtn danger" onclick="checkPassword()">UNLOCK</button><button class="mbtn" onclick="closeModal('pass-overlay')">CANCEL</button></div>
+    </div>
+</div>
+<div id="dev-overlay" class="modal-overlay">
+    <div class="modal" style="border-style:dashed;border-color:#0f0;">
+        <h2 style="color:#0f0;font-size:14px;letter-spacing:2px;">DEV TOOLS</h2>
+        <input type="number" id="dev-money-input" placeholder="SET WALLET">
+        <div><button class="mbtn" onclick="saveDevMoney()">SET MONEY</button><button class="mbtn" onclick="closeModal('dev-overlay')">EXIT</button></div>
+    </div>
+</div>
+
+<!-- ══════════ HOME SCREEN ══════════ -->
+<div id="home-screen" class="screen active">
+  <div class="page-wrapper">
+    <div class="header">
+        <span class="logo" id="logo-click">TETRIS</span>
+        <div class="logo-sub">Investment Edition</div>
+        <div class="wallet-display" id="h-wallet">$0</div>
+        <div class="wallet-label">CAPITAL</div>
+    </div>
+
+    <div class="main-layout">
+      <div class="shop-panel">
+        <div class="panel-title">Market</div>
+        <div class="tab-row">
+            <button class="tab-btn active"   id="tab-tools"    onclick="switchTab('tools')">TOOLS</button>
+            <button class="tab-btn"           id="tab-upgrades" onclick="switchTab('upgrades')">UPGRADES</button>
+            <button class="tab-btn skill-tab" id="tab-skills"   onclick="switchTab('skills')">SKILLS</button>
+        </div>
+
+        <!-- TOOLS -->
+        <div id="tab-tools-content" class="shop-items">
+          <div class="shop-item" id="si-slow">
+            <div class="item-top"><div class="item-name">Slow Down <span id="badge-slow"></span></div><div class="item-price">$5,000</div></div>
+            <div class="item-desc">重力制御装置。ブロックの落下速度を低下させる。</div>
+            <button class="item-btn" id="btn-slow" onclick="handlePurchase('slow',5000)">BUY</button>
+          </div>
+          <div class="shop-item" id="si-multi">
+            <div class="item-top"><div class="item-name">Profit Multiplier <span id="badge-multi"></span></div><div class="item-price">$15,000</div></div>
+            <div class="item-desc">収益倍増チップ。ゲームオーバー時の獲得資金を2.0倍にブーストする。</div>
+            <button class="item-btn" id="btn-multi" onclick="handlePurchase('multi',15000)">BUY</button>
+          </div>
+          <div class="shop-item" id="si-next6">
+            <div class="item-top"><div class="item-name">Next Horizon <span id="badge-next6"></span></div><div class="item-price">$30,000</div></div>
+            <div class="item-desc">未来予測システム。NEXT表示を6個まで拡張する。</div>
+            <button class="item-btn" id="btn-next6" onclick="handlePurchase('next6',30000)">BUY</button>
+          </div>
+          <div class="shop-item" id="si-hold">
+            <div class="item-top"><div class="item-name">Quantum Hold <span id="badge-hold"></span></div><div class="item-price">$80,000</div></div>
+            <div class="item-desc">量子ホールド。ホールド制限を解除し、いつでも入れ替え可能にする。</div>
+            <button class="item-btn" id="btn-hold" onclick="handlePurchase('hold',80000)">BUY</button>
+          </div>
+        </div>
+
+        <!-- UPGRADES -->
+        <div id="tab-upgrades-content" class="shop-items" style="display:none;">
+          <div class="shop-item special" id="si-dual">
+            <div class="item-top"><div class="item-name">Dual Core System <span id="badge-dual"></span></div><div class="item-price">$500,000</div></div>
+            <div class="item-desc">マザーボード拡張。装備可能なツールを2つに拡張する。</div>
+            <button class="item-btn" id="btn-dual" onclick="handleDual()">UPGRADE</button>
+          </div>
+          <div class="shop-item special" id="si-mpregen">
+            <div class="item-top"><div class="item-name">MP Accelerator <span id="badge-mpregen"></span></div><div class="item-price">$100,000</div></div>
+            <div class="item-desc">MP自動回復速度を1/秒 → 2/秒に強化するモジュール。</div>
+            <button class="item-btn" id="btn-mpregen" onclick="handleUpgrade('mpregen',100000)">UPGRADE</button>
+          </div>
+        </div>
+
+        <!-- SKILLS -->
+        <div id="tab-skills-content" class="shop-items" style="display:none;">
+          <div class="shop-item skill-item" id="si-skill-morph">
+            <div class="item-top">
+                <div class="item-name">✦ Mino Morph <span id="badge-skill-morph"></span></div>
+                <div class="item-price">$50,000</div>
+            </div>
+            <div class="item-desc">
+                落下中のミノを任意のミノに瞬時に変換する。<br>
+                <span style="color:#7050a0;">キー: Q &nbsp;|&nbsp; 消費MP: 30 &nbsp;|&nbsp; 最大MP: 100 &nbsp;|&nbsp; 回復: 1/秒</span>
+            </div>
+            <button class="item-btn skill-buy" id="btn-skill-morph" onclick="handleSkillPurchase('morph',50000)">BUY SKILL</button>
+          </div>
+          <div class="shop-item skill-item" id="si-skill-terrain">
+            <div class="item-top">
+                <div class="item-name">✦ 地形出現 <span id="badge-skill-terrain"></span></div>
+                <div class="item-price">$120,000</div>
+            </div>
+            <div class="item-desc">
+                フィールド下部にTetris・T-Spinが狙いやすい地形を生成する。<br>
+                <span style="color:#7050a0;">キー: E &nbsp;|&nbsp; 消費MP: 60 &nbsp;|&nbsp; 最大MP: 100 &nbsp;|&nbsp; 回復: 1/秒</span>
+            </div>
+            <button class="item-btn skill-buy" id="btn-skill-terrain" onclick="handleSkillPurchase('terrain',120000)">BUY SKILL</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL -->
+      <div class="right-panel">
+        <div class="action-card">
+            <div class="panel-title">Game Speed</div>
+            <div class="speed-grid">
+                <button class="speed-btn" id="sp-0" onclick="setSpeed(0)"><span class="mult">x1.0</span>SLOW</button>
+                <button class="speed-btn active" id="sp-1" onclick="setSpeed(1)"><span class="mult">x1.5</span>NORMAL</button>
+                <button class="speed-btn" id="sp-2" onclick="setSpeed(2)"><span class="mult">x2.5</span>FAST</button>
+            </div>
+        </div>
+        <div class="action-card">
+            <div class="panel-title">Equipped <span id="slot-info" style="color:#334;font-size:9px;margin-left:3px;">(Max 1)</span></div>
+            <div class="equipped-box" id="h-equipped"><span class="no-equip">— none —</span></div>
+        </div>
+        <button class="start-btn" onclick="goToGame()">▶ START GAME</button>
+        <div class="action-card">
+            <div class="panel-title">Controls</div>
+            <div class="controls">
+                <div class="ctrl-item"><span class="key">↑/X</span> 時計回り</div>
+                <div class="ctrl-item"><span class="key">Z</span> 反時計回り</div>
+                <div class="ctrl-item"><span class="key">Space</span> ハードドロップ</div>
+                <div class="ctrl-item"><span class="key">↓</span> ソフトドロップ</div>
+                <div class="ctrl-item"><span class="key">C</span> ホールド</div>
+                <div class="ctrl-item"><span class="key">Q</span> Mino Morph</div>
+                <div class="ctrl-item"><span class="key">E</span> 地形出現</div>
+            </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ GAME SCREEN ══════════ -->
+<div id="game-screen" class="screen">
+    <div id="game-over-screen" class="game-overlay">
+        <div class="menu-box-g" style="border-color:#f44;">
+            <h2 style="color:#f44;margin-top:0;">SETTLEMENT</h2>
+            <p style="color:#556;font-size:11px;margin-bottom:3px;">EARNED</p>
+            <div id="earned-money" class="gmoney value" style="font-size:32px;margin:8px 0 20px;">$0</div>
+            <button class="gbtn" onclick="restartGame()">PLAY AGAIN</button>
+            <button class="gbtn gbtn-back" onclick="goHome()">HOME</button>
+        </div>
+    </div>
+
+    <!-- Float message (Tetris / T-Spin / BtoB) -->
+    <div id="float-msg"></div>
+
+    <!-- Mino picker -->
+    <div id="mino-picker">
+        <div class="picker-title">✦ MINO MORPH — 変換先 (30MP)</div>
+        <div class="picker-row" id="picker-row"></div>
+    </div>
+
+    <div class="game-container">
+        <!-- LEFT side -->
+        <div class="side-panel">
+            <div class="box">
+                <div class="glabel">WALLET</div>
+                <div id="g-wallet" class="value gmoney">$0</div>
+            </div>
+            <div class="box">
+                <div class="glabel">EQUIPPED</div>
+                <div id="g-equipped" style="font-size:9px;color:#00e090;min-height:20px;line-height:1.7;">None</div>
+            </div>
+            <!-- MP box (shown only when skill owned) -->
+            <div class="box" id="mp-box" style="display:none;">
+                <div class="glabel">MP</div>
+                <div class="mp-text" id="mp-text">100 / 100</div>
+                <div class="mp-bar-wrap"><div class="mp-bar-fill" id="mp-bar" style="width:100%"></div></div>
+                <button class="skill-btn" id="skill-morph-btn" onclick="openMinoPicker()">✦ MORPH (Q) −30</button>
+                <button class="skill-btn" id="skill-terrain-btn" onclick="activateTerrain()" style="display:none;">✦ 地形出現 (E) −60</button>
+            </div>
+            <div class="box">
+                <div class="glabel">HOLD</div>
+                <canvas id="hold" class="small" width="68" height="68"></canvas>
+            </div>
+            <!-- BtoB indicator -->
+            <div class="box" id="btob-box" style="display:none;">
+                <div class="glabel">BACK-TO-BACK</div>
+                <div id="btob-count" style="font-size:18px;font-weight:900;color:#ff9900;">×0</div>
+            </div>
+            <button class="home-btn" onclick="goHome()">⌂ HOME</button>
+        </div>
+
+        <canvas id="tetris" width="200" height="400"></canvas>
+
+        <!-- RIGHT side -->
+        <div class="side-panel">
+            <div class="box">
+                <div class="glabel">NEXT</div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                    <canvas id="next-1" class="small" width="50" height="50"></canvas>
+                    <canvas id="next-2" class="small" width="38" height="38" style="opacity:.8"></canvas>
+                    <canvas id="next-3" class="small" width="38" height="38" style="opacity:.6"></canvas>
+                    <canvas id="next-4" class="small" width="38" height="38" style="opacity:.4"></canvas>
+                    <canvas id="next-5" class="small" width="38" height="38" style="opacity:.2;display:none;"></canvas>
+                    <canvas id="next-6" class="small" width="38" height="38" style="opacity:.1;display:none;"></canvas>
+                </div>
+            </div>
+            <div class="box"><div class="glabel">SCORE</div><div id="score-val" class="value">0</div></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  PERSISTENT STATE
+// ══════════════════════════════════════════════
+let wallet        = parseInt(localStorage.getItem('ti_wallet')   || '0');
+let ownedTools    = JSON.parse(localStorage.getItem('ti_owned')     || '[]');
+let equippedTools = JSON.parse(localStorage.getItem('ti_equipped')  || '[]');
+let ownedSkills   = JSON.parse(localStorage.getItem('ti_skills')    || '[]');
+let ownedUpgrades = JSON.parse(localStorage.getItem('ti_upgrades')  || '[]');
+let hasDualSlot   = localStorage.getItem('ti_dual')  === 'true';
+let selectedSpeed = parseInt(localStorage.getItem('ti_speed') || '1');
+
+function persist() {
+    localStorage.setItem('ti_wallet',   wallet);
+    localStorage.setItem('ti_owned',    JSON.stringify(ownedTools));
+    localStorage.setItem('ti_equipped', JSON.stringify(equippedTools));
+    localStorage.setItem('ti_skills',   JSON.stringify(ownedSkills));
+    localStorage.setItem('ti_upgrades', JSON.stringify(ownedUpgrades));
+    localStorage.setItem('ti_dual',     hasDualSlot);
+    localStorage.setItem('ti_speed',    selectedSpeed);
+}
+
+// ══════════════════════════════════════════════
+//  SCREEN SWITCH
+// ══════════════════════════════════════════════
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+}
+function goToGame() { updateGameSideUI(); showScreen('game-screen'); startFreshGame(); }
+function goHome()   { gameState='IDLE'; closePicker(); updateHomeUI(); showScreen('home-screen'); }
+
+// ══════════════════════════════════════════════
+//  HOME LOGIC
+// ══════════════════════════════════════════════
+function setSpeed(v) {
+    selectedSpeed=v;
+    [0,1,2].forEach(i=>document.getElementById('sp-'+i).classList.toggle('active',i===v));
+    persist();
+}
+setSpeed(selectedSpeed);
+
+function switchTab(t) {
+    ['tools','upgrades','skills'].forEach(n=>{
+        document.getElementById(`tab-${n}-content`).style.display = n===t?'flex':'none';
+        document.getElementById(`tab-${n}`).classList.toggle('active',n===t);
+    });
+}
+
+const TOOL_IDS=['slow','multi','next6','hold'];
+
+function handlePurchase(id,price) {
+    if (!ownedTools.includes(id)) { if(wallet<price){shakeWallet();return;} wallet-=price; ownedTools.push(id); }
+    if (equippedTools.includes(id)) { equippedTools=equippedTools.filter(t=>t!==id); }
+    else { const max=hasDualSlot?2:1; if(equippedTools.length>=max)equippedTools.shift(); equippedTools.push(id); }
+    persist(); updateHomeUI();
+}
+function handleDual() { if(hasDualSlot)return; if(wallet<500000){shakeWallet();return;} wallet-=500000; hasDualSlot=true; persist(); updateHomeUI(); }
+function handleUpgrade(id,price) { if(ownedUpgrades.includes(id))return; if(wallet<price){shakeWallet();return;} wallet-=price; ownedUpgrades.push(id); persist(); updateHomeUI(); }
+function handleSkillPurchase(id,price) { if(ownedSkills.includes(id))return; if(wallet<price){shakeWallet();return;} wallet-=price; ownedSkills.push(id); persist(); updateHomeUI(); }
+
+function updateHomeUI() {
+    document.getElementById('h-wallet').innerText='$'+wallet.toLocaleString();
+    document.getElementById('slot-info').innerText='(Max '+(hasDualSlot?2:1)+')';
+    const eq=document.getElementById('h-equipped');
+    eq.innerHTML=equippedTools.length===0?'<span class="no-equip">— none —</span>':equippedTools.map(t=>`<div>✦ ${t}</div>`).join('');
+
+    TOOL_IDS.forEach(id=>{
+        const si=document.getElementById('si-'+id), btn=document.getElementById('btn-'+id), bdg=document.getElementById('badge-'+id);
+        si.classList.remove('owned','equipped'); bdg.innerHTML='';
+        if(equippedTools.includes(id)){si.classList.add('equipped');bdg.innerHTML='<span class="badge badge-equipped">EQUIPPED</span>';btn.textContent='UNEQUIP';btn.className='item-btn equipped-btn';}
+        else if(ownedTools.includes(id)){si.classList.add('owned');bdg.innerHTML='<span class="badge badge-owned">OWNED</span>';btn.textContent='EQUIP';btn.className='item-btn';}
+        else{btn.textContent='BUY';btn.className='item-btn';}
+    });
+
+    // Dual
+    const dBtn=document.getElementById('btn-dual'),dBdg=document.getElementById('badge-dual');
+    if(hasDualSlot){document.getElementById('si-dual').classList.add('equipped');dBdg.innerHTML='<span class="badge badge-active">ACTIVE</span>';dBtn.textContent='INSTALLED';dBtn.disabled=true;}
+    else{dBtn.disabled=false;dBtn.textContent='UPGRADE';}
+
+    // MP Accelerator
+    const mBtn=document.getElementById('btn-mpregen'),mBdg=document.getElementById('badge-mpregen');
+    if(ownedUpgrades.includes('mpregen')){document.getElementById('si-mpregen').classList.add('equipped');mBdg.innerHTML='<span class="badge badge-active">ACTIVE</span>';mBtn.textContent='INSTALLED';mBtn.disabled=true;}
+    else{mBtn.disabled=false;mBtn.textContent='UPGRADE';}
+
+    // Skills
+    [['morph','si-skill-morph','btn-skill-morph','badge-skill-morph'],
+     ['terrain','si-skill-terrain','btn-skill-terrain','badge-skill-terrain']].forEach(([id,si,btn,bdg])=>{
+        const owned=ownedSkills.includes(id);
+        document.getElementById(si).classList.toggle('owned',owned);
+        document.getElementById(bdg).innerHTML=owned?'<span class="badge badge-skill">OWNED</span>':'';
+        document.getElementById(btn).textContent=owned?'PURCHASED':'BUY SKILL';
+        document.getElementById(btn).disabled=owned;
+    });
+}
+updateHomeUI();
+
+function shakeWallet(){
+    const el=document.getElementById('h-wallet');
+    el.style.color='#f44';el.style.transform='translateX(-6px)';
+    setTimeout(()=>el.style.transform='translateX(6px)',80);
+    setTimeout(()=>el.style.transform='translateX(-4px)',160);
+    setTimeout(()=>{el.style.transform='translateX(0)';el.style.color='#ffd93d';},260);
+}
+
+// Dev tools
+let logoClicks=0;
+document.getElementById('logo-click').addEventListener('click',()=>{ if(++logoClicks>=3){logoClicks=0;document.getElementById('pass-overlay').classList.add('show');} });
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+function checkPassword(){if(document.getElementById('dev-pass').value==='km778695'){closeModal('pass-overlay');document.getElementById('dev-money-input').value=wallet;document.getElementById('dev-overlay').classList.add('show');}else{alert('WRONG');}}
+function saveDevMoney(){wallet=parseInt(document.getElementById('dev-money-input').value)||0;persist();updateHomeUI();closeModal('dev-overlay');}
+
+// ══════════════════════════════════════════════
+//  TETRIS ENGINE
+// ══════════════════════════════════════════════
+const canvas   = document.getElementById('tetris');
+const context  = canvas.getContext('2d');
+const nextCtxs = Array.from({length:6},(_,i)=>document.getElementById(`next-${i+1}`).getContext('2d'));
+const hCtx     = document.getElementById('hold').getContext('2d');
+context.scale(20,20); nextCtxs.forEach(c=>c.scale(11,11)); hCtx.scale(17,17);
+
+const COLORS=[null,'#00FFFF','#FFFF00','#A000F0','#00F000','#F00000','#0000F0','#F0A000'];
+// Terrain color (dim gray-blue)
+const TERRAIN_COLOR=8; COLORS[8]='#2a3040';
+const TYPES=['I','O','T','S','Z','J','L'];
+const speedMultipliers=[1.0,1.5,2.5];
+const baseIntervals=[1200,800,400];
+
+// MP
+const MP_MAX=100;
+let mp=MP_MAX, mpTimer=0;
+
+// Game state
+let gameState='IDLE';
+let score=0;
+let arena=Array.from({length:20},()=>Array(10).fill(0));
+let player={pos:{x:3,y:0},matrix:null,type:null};
+let holdPiece=null, canHold=true, nextQueue=[], bag=[];
+let dropCounter=0, softDropHeld=false, lastTime=0, rafId=null;
+let pickerOpen=false;
+
+// BtoB
+let btobCount=0;   // consecutive Tetris/T-Spin count
+let lastWasSpecial=false;
+
+// T-Spin tracking
+let lastMoveWasRotate=false;
+
+function mpRegenRate(){ return ownedUpgrades.includes('mpregen')?2:1; }
+
+function updateMPBar(){
+    if(!document.getElementById('mp-bar')) return;
+    const pct=(mp/MP_MAX)*100;
+    document.getElementById('mp-bar').style.width=pct+'%';
+    document.getElementById('mp-text').innerText=Math.floor(mp)+' / '+MP_MAX;
+    const mb=document.getElementById('skill-morph-btn');
+    const tb=document.getElementById('skill-terrain-btn');
+    if(mb) mb.disabled=(mp<30);
+    if(tb) tb.disabled=(mp<60);
+}
+
+function updateGameSideUI(){
+    const hasAnySkill=ownedSkills.includes('morph')||ownedSkills.includes('terrain');
+    document.getElementById('mp-box').style.display=hasAnySkill?'block':'none';
+    if(document.getElementById('skill-terrain-btn'))
+        document.getElementById('skill-terrain-btn').style.display=ownedSkills.includes('terrain')?'block':'none';
+    document.getElementById('g-wallet').innerText='$'+wallet.toLocaleString();
+    document.getElementById('g-equipped').innerText=equippedTools.length>0?equippedTools.join('\n'):'None';
+    document.getElementById('next-5').style.display=equippedTools.includes('next6')?'block':'none';
+    document.getElementById('next-6').style.display=equippedTools.includes('next6')?'block':'none';
+    updateMPBar();
+    updateBtoBDisplay();
+}
+
+function updateBtoBDisplay(){
+    document.getElementById('btob-box').style.display=btobCount>0?'block':'none';
+    document.getElementById('btob-count').innerText='×'+btobCount;
+}
+
+// ── Start ─────────────────────────────────────
+function startFreshGame(){
+    if(rafId) cancelAnimationFrame(rafId);
+    arena.forEach(r=>r.fill(0));
+    score=0; holdPiece=null; nextQueue=[]; bag=[]; canHold=true;
+    dropCounter=0; lastTime=0; mp=MP_MAX; mpTimer=0;
+    pickerOpen=false; btobCount=0; lastWasSpecial=false; lastMoveWasRotate=false; softDropHeld=false;
+    document.getElementById('score-val').innerText='0';
+    document.getElementById('game-over-screen').style.display='none';
+    closePicker(); gameState='PLAYING'; playerReset(); updateMPBar(); updateBtoBDisplay();
+    rafId=requestAnimationFrame(update);
+}
+function restartGame(){ updateGameSideUI(); startFreshGame(); }
+
+function handleGameOver(){
+    gameState='GAMEOVER'; closePicker();
+    let multi=speedMultipliers[selectedSpeed];
+    if(equippedTools.includes('multi')) multi*=2.0;
+    const earned=Math.floor(score*multi);
+    wallet+=earned; persist();
+    document.getElementById('g-wallet').innerText='$'+wallet.toLocaleString();
+    document.getElementById('earned-money').innerText='$'+earned.toLocaleString();
+    document.getElementById('game-over-screen').style.display='flex';
+}
+
+// ── Pieces ────────────────────────────────────
+function createPiece(type){
+    if(type==='I') return [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]];
+    if(type==='O') return [[2,2],[2,2]];
+    if(type==='T') return [[0,3,0],[3,3,3],[0,0,0]];
+    if(type==='S') return [[0,4,4],[4,4,0],[0,0,0]];
+    if(type==='Z') return [[5,5,0],[0,5,5],[0,0,0]];
+    if(type==='J') return [[6,0,0],[6,6,6],[0,0,0]];
+    if(type==='L') return [[0,0,7],[7,7,7],[0,0,0]];
+}
+function fillQueue(){
+    const target=equippedTools.includes('next6')?7:5;
+    while(nextQueue.length<target){
+        if(bag.length===0){ bag=[...TYPES]; for(let i=bag.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[bag[i],bag[j]]=[bag[j],bag[i]];} }
+        nextQueue.push(bag.pop());
+    }
+}
+function collide(arena,p){
+    const[m,o]=[p.matrix,p.pos];
+    for(let y=0;y<m.length;y++) for(let x=0;x<m[y].length;x++)
+        if(m[y][x]!==0&&(arena[y+o.y]===undefined||arena[y+o.y][x+o.x]===undefined||arena[y+o.y][x+o.x]!==0)) return true;
+    return false;
+}
+function playerReset(){
+    fillQueue();
+    player.type=nextQueue.shift(); player.matrix=createPiece(player.type);
+    player.pos.y=0; player.pos.x=3; lastMoveWasRotate=false;
+    if(collide(arena,player)) handleGameOver();
+    fillQueue();
+}
+
+// ── T-Spin detection (3-corner rule) ─────────
+function detectTSpin(){
+    if(player.type!=='T'||!lastMoveWasRotate) return 'none';
+    const cx=player.pos.x+1, cy=player.pos.y+1;
+    const corners=[[cx-1,cy-1],[cx+1,cy-1],[cx-1,cy+1],[cx+1,cy+1]];
+    function blocked(x,y){return x<0||x>=10||y<0||y>=20||(arena[y]&&arena[y][x]!==0);}
+    const f=corners.map(([x,y])=>blocked(x,y));
+    return f.filter(Boolean).length>=3?'tspin':'none';
+}
+
+// ── Scoring + BtoB + float ────────────────────
+const FLOAT_EL=document.getElementById('float-msg');
+let floatTimer=null;
+function showFloat(text,color='#fff',size=26){
+    FLOAT_EL.innerText=text; FLOAT_EL.style.fontSize=size+'px'; FLOAT_EL.style.color=color;
+    FLOAT_EL.style.textShadow=`0 0 12px ${color}, 2px 2px #000`;
+    FLOAT_EL.style.opacity='1';
+    clearTimeout(floatTimer);
+    floatTimer=setTimeout(()=>FLOAT_EL.style.opacity='0',1600);
+}
+
+function arenaSweep(){
+    const tspin=detectTSpin();
+    let rows=0;
+    for(let y=arena.length-1;y>=0;y--){
+        if(arena[y].every(v=>v!==0)){arena.splice(y,1);arena.unshift(new Array(10).fill(0));rows++;y++;}
+    }
+
+    let pts=0, label='', isSpecial=false;
+
+    if(tspin==='tspin'&&rows>0){
+        // T-Spin + lines
+        const base=[800,1200,1600][rows-1]??1600;
+        pts=base; isSpecial=true;
+        label=['T-SPIN SINGLE','T-SPIN DOUBLE','T-SPIN TRIPLE'][rows-1]??'T-SPIN';
+    } else if(tspin==='tspin'&&rows===0){
+        pts=400; label='T-SPIN';
+    } else if(rows===4){
+        pts=800; isSpecial=true; label='TETRIS';
+    } else if(rows>0){
+        pts=[100,300,500][rows-1]??500; label='';
+    }
+
+    // BtoB
+    if(isSpecial){
+        if(lastWasSpecial){
+            btobCount++;
+            pts=Math.floor(pts*1.5); // BtoB bonus ×1.5
+            label=(label?label+'\n':'')+'BACK-TO-BACK ×'+btobCount;
+            showFloat(label,'#ff9900',22);
+        } else {
+            btobCount=0;
+            if(label) showFloat(label, tspin==='tspin'?'#d080ff':'#00d4ff', 26);
+        }
+        lastWasSpecial=true;
+    } else {
+        if(rows>0) lastWasSpecial=false;
+    }
+    updateBtoBDisplay();
+
+    if(pts){ score+=pts; document.getElementById('score-val').innerText=score; }
+    // Show label even for non-BtoB special on first occurrence
+    if(isSpecial&&btobCount===0&&label){
+        showFloat(label, tspin==='tspin'?'#d080ff':'#00d4ff', 26);
+    }
+}
+
+// ── Draw ──────────────────────────────────────
+function drawMatrix(m,o,dc,isGhost=false){
+    m.forEach((row,y)=>row.forEach((v,x)=>{
+        if(v!==0){
+            dc.fillStyle=isGhost?'rgba(255,255,255,0.10)':COLORS[v]||'#888';
+            dc.fillRect(x+o.x,y+o.y,1,1);
+        }
+    }));
+}
+function draw(){
+    context.fillStyle='#000'; context.fillRect(0,0,10,20);
+    // grid
+    context.strokeStyle='#0a0a14'; context.lineWidth=0.05;
+    for(let x=0;x<10;x++) for(let y=0;y<20;y++) context.strokeRect(x,y,1,1);
+
+    if(gameState==='PLAYING'||gameState==='GAMEOVER'){
+        let gy=player.pos.y;
+        while(!collide(arena,{...player,pos:{x:player.pos.x,y:gy+1}})) gy++;
+        drawMatrix(player.matrix,{x:player.pos.x,y:gy},context,true);
+        drawMatrix(arena,{x:0,y:0},context);
+        drawMatrix(player.matrix,player.pos,context);
+    }
+    hCtx.fillStyle='#050508'; hCtx.fillRect(0,0,4,4);
+    if(holdPiece) drawMatrix(holdPiece,{x:0,y:0},hCtx);
+    nextCtxs.forEach((c,i)=>{c.fillStyle='#050508';c.fillRect(0,0,5,5);if(nextQueue[i])drawMatrix(createPiece(nextQueue[i]),{x:0,y:0},c);});
+}
+
+function playerRotate(dir){
+    const backup=player.matrix.map(r=>[...r]);
+    for(let y=0;y<player.matrix.length;y++) for(let x=0;x<y;x++) [player.matrix[x][y],player.matrix[y][x]]=[player.matrix[y][x],player.matrix[x][y]];
+    if(dir>0) player.matrix.forEach(r=>r.reverse()); else player.matrix.reverse();
+    if(collide(arena,player)){player.matrix=backup; return;}
+    lastMoveWasRotate=true;
+}
+function merge(){ player.matrix.forEach((r,y)=>r.forEach((v,x)=>{if(v!==0)arena[y+player.pos.y][x+player.pos.x]=v;})); }
+function lockPiece(){ merge(); arenaSweep(); playerReset(); canHold=true; dropCounter=0; }
+
+// ── Mino Morph ────────────────────────────────
+function buildPickerUI(){
+    const row=document.getElementById('picker-row');
+    row.innerHTML='';
+    TYPES.forEach(type=>{
+        if(type===player.type) return;
+        const wrap=document.createElement('div'); wrap.className='mino-choice'; wrap.title=type;
+        const c=document.createElement('canvas'); c.width=42; c.height=42;
+        const dctx=c.getContext('2d'); dctx.scale(10,10);
+        drawMatrix(createPiece(type),{x:0,y:0},dctx);
+        wrap.appendChild(c); wrap.addEventListener('click',()=>applyMorph(type));
+        row.appendChild(wrap);
+    });
+}
+function openMinoPicker(){
+    if(!ownedSkills.includes('morph')||gameState!=='PLAYING'||mp<30) return;
+    pickerOpen=true; buildPickerUI();
+    document.getElementById('mino-picker').style.display='block';
+}
+function closePicker(){ pickerOpen=false; document.getElementById('mino-picker').style.display='none'; }
+function applyMorph(type){
+    if(mp<30){closePicker();return;}
+    mp=Math.max(0,mp-30);
+    player.type=type; player.matrix=createPiece(type);
+    let attempts=0; while(collide(arena,player)&&attempts<3){player.pos.y--;attempts++;}
+    lastMoveWasRotate=false; updateMPBar(); closePicker();
+}
+
+// ── Terrain Skill ─────────────────────────────
+function activateTerrain(){
+    if(!ownedSkills.includes('terrain')||gameState!=='PLAYING'||mp<60) return;
+    mp=Math.max(0,mp-60);
+    // Generate terrain: 9-column well (col 9 open) at bottom 3 rows
+    // Row 17: [8,8,8,8,8,8,8,8,8,0]
+    // Row 18: [8,8,8,8,8,8,8,8,8,0]
+    // Row 19: [8,0,8,8,8,8,8,8,8,0]  <- T-Spin notch at col1
+    const terrainRows=[
+        [8,8,8,8,8,8,8,8,8,0],
+        [8,8,8,8,8,8,8,8,8,0],
+        [8,0,8,8,8,8,8,8,8,0],
+    ];
+    // Push existing blocks up by 3
+    for(let i=0;i<3;i++) arena.unshift(new Array(10).fill(0));
+    arena.splice(20,3); // remove bottom 3 that got pushed out
+    // Place terrain at bottom
+    terrainRows.forEach((row,i)=>{ arena[17+i]=row.map(v=>v); });
+    updateMPBar();
+    showFloat('✦ 地形出現！','#b060ff',24);
+}
+
+// ── Input ─────────────────────────────────────
+const keysDown={};
+window.addEventListener('keydown',e=>{
+    if(gameState!=='PLAYING') return;
+    if(e.key==='Escape'&&pickerOpen){closePicker();return;}
+    if((e.key==='q'||e.key==='Q')&&!pickerOpen&&!keysDown[e.key]){openMinoPicker();keysDown[e.key]=true;return;}
+    if((e.key==='e'||e.key==='E')&&!keysDown[e.key]){activateTerrain();keysDown[e.key]=true;return;}
+    if(pickerOpen){
+        const n=parseInt(e.key);
+        if(n>=1&&n<=7){const t=TYPES.filter(t=>t!==player.type)[n-1];if(t)applyMorph(t);}
+        return;
+    }
+    if(!keysDown[e.key]){
+        if(e.key==='ArrowUp'||e.key==='x'||e.key==='X') playerRotate(1);
+        if(e.key==='z'||e.key==='Z') playerRotate(-1);
+        if(e.key===' '){
+            e.preventDefault();
+            while(!collide(arena,player)) player.pos.y++;
+            player.pos.y--; lastMoveWasRotate=false; lockPiece();
+        }
+        if(e.key==='c'||e.key==='C'){
+            if(!canHold&&!equippedTools.includes('hold')) return;
+            if(!holdPiece){holdPiece=createPiece(player.type);playerReset();}
+            else{const t=holdPiece;holdPiece=createPiece(player.type);player.matrix=t;player.pos.y=0;player.pos.x=3;lastMoveWasRotate=false;}
+            canHold=false;
+        }
+    }
+    if(e.key==='ArrowLeft'){player.pos.x--;if(collide(arena,player))player.pos.x++;else lastMoveWasRotate=false;}
+    if(e.key==='ArrowRight'){player.pos.x++;if(collide(arena,player))player.pos.x--;else lastMoveWasRotate=false;}
+    if(e.key==='ArrowDown') softDropHeld=true;
+    keysDown[e.key]=true;
+});
+window.addEventListener('keyup',e=>{
+    keysDown[e.key]=false;
+    if(e.key==='ArrowDown') softDropHeld=false;
+});
+
+// ── Game loop ─────────────────────────────────
+function update(time=0){
+    const dt=Math.min(time-lastTime,100); lastTime=time;
+    if(gameState==='PLAYING'&&!pickerOpen){
+        // MP regen
+        mpTimer+=dt;
+        const ri=1000/mpRegenRate();
+        while(mpTimer>=ri){ mp=Math.min(MP_MAX,mp+1); mpTimer-=ri; }
+        updateMPBar();
+
+        // Drop (soft drop: 20× speed)
+        let base=baseIntervals[selectedSpeed];
+        if(equippedTools.includes('slow')) base+=400;
+        const interval=softDropHeld?Math.max(30,base/20):Math.max(80,base-(Math.floor(score/1500)*55));
+        dropCounter+=dt;
+        if(dropCounter>=interval){
+            player.pos.y++;
+            if(collide(arena,player)){
+                player.pos.y--;
+                if(!softDropHeld){ lastMoveWasRotate=false; lockPiece(); }
+                // if soft drop hits floor, lock anyway
+                else { lastMoveWasRotate=false; lockPiece(); }
+            } else { if(softDropHeld) lastMoveWasRotate=false; }
+            dropCounter=0;
+        }
+    }
+    draw();
+    rafId=requestAnimationFrame(update);
+}
+</script>
+</body>
+</html>
